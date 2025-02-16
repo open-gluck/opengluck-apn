@@ -4,6 +4,7 @@ const opengluckApn = require("..");
   await opengluckApn.sendNotification({
     alert: { title: "Test Notification", body: "This is a test notification" },
     sound: "default",
+    category: "LOW",
   });
   process.exit();
 })();
