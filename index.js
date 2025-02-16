@@ -64,6 +64,7 @@ exports.sendNotification = async function sendNotification({
   contentAvailable,
   priority,
   sound,
+  category,
   badge,
   payload,
 }) {
@@ -84,6 +85,9 @@ exports.sendNotification = async function sendNotification({
     }
     if (sound !== undefined) {
       notification.sound = sound;
+    }
+    if (category !== undefined) {
+      notification.category = category;
     }
     if (badge !== undefined) {
       notification.badge = badge;
