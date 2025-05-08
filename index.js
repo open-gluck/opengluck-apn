@@ -24,13 +24,13 @@ const apnProviderProd = new apn.Provider(optionsProd);
 const configs = [
   {
     topic: process.env.TOPIC,
-    apnProvider: apnProviderDev,
-    app: "iOS",
+    apnProvider: apnProviderProd,
+    app: "iOS.production",
   },
   {
     topic: process.env.TOPIC,
-    apnProvider: apnProviderProd,
-    app: "iOS.production",
+    apnProvider: apnProviderDev,
+    app: "iOS",
   },
   // TODO: support watch app
 ];
@@ -95,7 +95,7 @@ exports.sendNotification = async function sendNotification({
     if (payload !== undefined) {
       notification.payload = payload;
     }
-    console.log("Notification to send", notification);
+    console.log("Notification to send for app " + app, notification);
 
     const deviceTokens = await getDeviceTokens(app);
     if (!deviceTokens.length) {
