@@ -51,7 +51,7 @@ const getDeviceTokens = (exports.getDeviceTokens =
             resolve(deviceTokens);
           });
           res.on("error", reject);
-        }
+        },
       );
       req.setHeader("Authorization", `Bearer ${process.env.OPENGLUCK_TOKEN}`);
       req.end();
@@ -68,6 +68,9 @@ exports.sendNotification = async function sendNotification({
   badge,
   payload,
 }) {
+  const results = {
+    debugFailed: [],
+  };
   for (const { topic, apnProvider, app } of configs) {
     if (onlyApp && app !== onlyApp) {
       continue;
@@ -106,6 +109,9 @@ exports.sendNotification = async function sendNotification({
     console.log(response);
     for (const f of response.failed) {
       console.log(f);
+      if (f.status === "410") {
+        results.debugFailed.push(`zrem userdata:apn-${app} ${f.device}`);
+      }
     }
   }
 };
