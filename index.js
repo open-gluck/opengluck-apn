@@ -114,4 +114,5 @@ exports.sendNotification = async function sendNotification({
       }
     }
   }
+  return results;
 };
