@@ -1,6 +1,16 @@
 require("dotenv").config({ path: "~/.opengluck-apn" });
 const https = require("https");
 const apn = require("apn");
+const admin = require("firebase-admin");
+
+// Initialize FCM if configured
+let fcmApp = null;
+if (process.env.FCM_SERVICE_ACCOUNT_FILE) {
+  const serviceAccount = require(process.env.FCM_SERVICE_ACCOUNT_FILE);
+  fcmApp = admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+}
 
 const optionsDev = {
   token: {
@@ -26,20 +36,29 @@ const configs = [
     topic: process.env.TOPIC,
     apnProvider: apnProviderProd,
     app: "iOS.production",
+    platform: "apns",
   },
   {
     topic: process.env.TOPIC,
     apnProvider: apnProviderDev,
     app: "iOS",
+    platform: "apns",
   },
   // TODO: support watch app
+  // FCM configs for Android (only if FCM is configured)
+  ...(fcmApp
+    ? [
+        { app: "Android.production", platform: "fcm" },
+        { app: "Android", platform: "fcm" },
+      ]
+    : []),
 ];
 
 const getDeviceTokens = (exports.getDeviceTokens =
-  async function getDeviceTokens(app) {
+  async function getDeviceTokens(app, prefix = "apn") {
     return new Promise((resolve, reject) => {
       const req = https.request(
-        `${process.env.OPENGLUCK_URL}/opengluck/userdata/apn-${app}/zrange`,
+        `${process.env.OPENGLUCK_URL}/opengluck/userdata/${prefix}-${app}/zrange`,
         (res) => {
           let chunks = [];
           res.on("data", (chunk) => {
@@ -58,6 +77,62 @@ const getDeviceTokens = (exports.getDeviceTokens =
     });
   });
 
+// Build FCM message from notification options
+function buildFcmMessage({
+  alert,
+  contentAvailable,
+  priority,
+  sound,
+  category,
+  badge,
+  payload,
+}) {
+  const message = {
+    android: {
+      priority: priority >= 10 ? "high" : "normal",
+    },
+  };
+
+  if (alert) {
+    message.notification = {};
+    if (typeof alert === "string") {
+      message.notification.body = alert;
+    } else {
+      if (alert.title) message.notification.title = alert.title;
+      if (alert.body) message.notification.body = alert.body;
+    }
+  }
+
+  if (sound) {
+    message.android.notification = message.android.notification || {};
+    message.android.notification.sound = sound === "default" ? "default" : sound;
+  }
+
+  if (category) {
+    message.android.notification = message.android.notification || {};
+    message.android.notification.clickAction = category;
+  }
+
+  if (contentAvailable) {
+    message.data = message.data || {};
+    message.data.contentAvailable = "true";
+  }
+
+  if (payload) {
+    message.data = message.data || {};
+    for (const [key, value] of Object.entries(payload)) {
+      message.data[key] = typeof value === "string" ? value : JSON.stringify(value);
+    }
+  }
+
+  if (badge !== undefined) {
+    message.data = message.data || {};
+    message.data.badge = String(badge);
+  }
+
+  return message;
+}
+
 exports.sendNotification = async function sendNotification({
   app: onlyApp,
   alert,
@@ -71,46 +146,82 @@ exports.sendNotification = async function sendNotification({
   const results = {
     debugFailed: [],
   };
-  for (const { topic, apnProvider, app } of configs) {
+  for (const { topic, apnProvider, app, platform } of configs) {
     if (onlyApp && app !== onlyApp) {
       continue;
     }
-    let notification = new apn.Notification();
-    notification.topic = topic;
-    if (alert !== undefined) {
-      notification.alert = alert;
-    }
-    if (contentAvailable !== undefined) {
-      notification.contentAvailable = contentAvailable;
-    }
-    if (priority !== undefined) {
-      notification.priority = priority;
-    }
-    if (sound !== undefined) {
-      notification.sound = sound;
-    }
-    if (category !== undefined) {
-      notification.category = category;
-    }
-    if (badge !== undefined) {
-      notification.badge = badge;
-    }
-    if (payload !== undefined) {
-      notification.payload = payload;
-    }
-    console.log("Notification to send for app " + app, notification);
 
-    const deviceTokens = await getDeviceTokens(app);
+    const storagePrefix = platform === "fcm" ? "fcm" : "apn";
+    const deviceTokens = await getDeviceTokens(app, storagePrefix);
     if (!deviceTokens.length) {
       console.log(`Skip, no device tokens for ${app}`);
       continue;
     }
-    const response = await apnProvider.send(notification, deviceTokens);
-    console.log(response);
-    for (const f of response.failed) {
-      console.log(f);
-      if (f.status === "410") {
-        results.debugFailed.push(`zrem userdata:apn-${app} ${f.device}`);
+
+    if (platform === "apns") {
+      // APNS sending logic
+      let notification = new apn.Notification();
+      notification.topic = topic;
+      if (alert !== undefined) {
+        notification.alert = alert;
+      }
+      if (contentAvailable !== undefined) {
+        notification.contentAvailable = contentAvailable;
+      }
+      if (priority !== undefined) {
+        notification.priority = priority;
+      }
+      if (sound !== undefined) {
+        notification.sound = sound;
+      }
+      if (category !== undefined) {
+        notification.category = category;
+      }
+      if (badge !== undefined) {
+        notification.badge = badge;
+      }
+      if (payload !== undefined) {
+        notification.payload = payload;
+      }
+      console.log("APNS Notification to send for app " + app, notification);
+
+      const response = await apnProvider.send(notification, deviceTokens);
+      console.log(response);
+      for (const f of response.failed) {
+        console.log(f);
+        if (f.status === "410") {
+          results.debugFailed.push(`zrem userdata:apn-${app} ${f.device}`);
+        }
+      }
+    } else if (platform === "fcm") {
+      // FCM sending logic
+      const fcmMessage = buildFcmMessage({
+        alert,
+        contentAvailable,
+        priority,
+        sound,
+        category,
+        badge,
+        payload,
+      });
+      console.log("FCM Notification to send for app " + app, fcmMessage);
+
+      for (const token of deviceTokens) {
+        try {
+          const response = await admin.messaging().send({
+            ...fcmMessage,
+            token: token,
+          });
+          console.log("FCM success:", response);
+        } catch (error) {
+          console.log("FCM error:", error);
+          if (
+            error.code === "messaging/registration-token-not-registered" ||
+            error.code === "messaging/invalid-registration-token"
+          ) {
+            results.debugFailed.push(`zrem userdata:fcm-${app} ${token}`);
+          }
+        }
       }
     }
   }
