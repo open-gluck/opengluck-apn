@@ -218,7 +218,7 @@ exports.sendNotification = async function sendNotification({
           });
           console.log("FCM success:", response);
         } catch (error) {
-          console.log(`FCM error for token $token}:`, error);
+          console.log(`FCM error for token ${token}:`, error);
           if (
             error.code === "messaging/registration-token-not-registered" ||
             error.code === "messaging/invalid-registration-token"
