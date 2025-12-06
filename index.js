@@ -91,7 +91,8 @@ function buildFcmMessage({
 }) {
   // For FCM, default to 'high' priority for reliable delivery when app is killed.
   // Only use 'normal' if explicitly requested (priority <= 5 maps to APNS "normal").
-  const fcmPriority = priority !== undefined && priority <= 5 ? "normal" : "high";
+  const fcmPriority =
+    priority !== undefined && priority <= 5 ? "normal" : "high";
 
   const message = {
     android: {
@@ -124,7 +125,8 @@ function buildFcmMessage({
 
   if (payload) {
     for (const [key, value] of Object.entries(payload)) {
-      message.data[key] = typeof value === "string" ? value : JSON.stringify(value);
+      message.data[key] =
+        typeof value === "string" ? value : JSON.stringify(value);
     }
   }
 
@@ -216,7 +218,7 @@ exports.sendNotification = async function sendNotification({
           });
           console.log("FCM success:", response);
         } catch (error) {
-          console.log("FCM error:", error);
+          console.log(`FCM error for token $token}:`, error);
           if (
             error.code === "messaging/registration-token-not-registered" ||
             error.code === "messaging/invalid-registration-token"
