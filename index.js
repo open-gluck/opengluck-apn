@@ -87,9 +87,13 @@ function buildFcmMessage({
   badge,
   payload,
 }) {
+  // For FCM, default to 'high' priority for reliable delivery when app is killed.
+  // Only use 'normal' if explicitly requested (priority <= 5 maps to APNS "normal").
+  const fcmPriority = priority !== undefined && priority <= 5 ? "normal" : "high";
+
   const message = {
     android: {
-      priority: priority >= 10 ? "high" : "normal",
+      priority: fcmPriority,
     },
   };
 
