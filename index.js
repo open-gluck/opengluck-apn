@@ -78,6 +78,8 @@ const getDeviceTokens = (exports.getDeviceTokens =
   });
 
 // Build FCM message from notification options
+// Uses data-only messages (no notification payload) so the Android app's
+// onMessageReceived handles display, even when app is killed/background.
 function buildFcmMessage({
   alert,
   contentAvailable,
@@ -95,42 +97,38 @@ function buildFcmMessage({
     android: {
       priority: fcmPriority,
     },
+    data: {},
   };
 
+  // Put alert info in data payload instead of notification payload
   if (alert) {
-    message.notification = {};
     if (typeof alert === "string") {
-      message.notification.body = alert;
+      message.data.body = alert;
     } else {
-      if (alert.title) message.notification.title = alert.title;
-      if (alert.body) message.notification.body = alert.body;
+      if (alert.title) message.data.title = alert.title;
+      if (alert.body) message.data.body = alert.body;
     }
   }
 
   if (sound) {
-    message.android.notification = message.android.notification || {};
-    message.android.notification.sound = sound === "default" ? "default" : sound;
+    message.data.sound = sound === "default" ? "default" : sound;
   }
 
   if (category) {
-    message.android.notification = message.android.notification || {};
-    message.android.notification.clickAction = category;
+    message.data.category = category;
   }
 
   if (contentAvailable) {
-    message.data = message.data || {};
     message.data.contentAvailable = "true";
   }
 
   if (payload) {
-    message.data = message.data || {};
     for (const [key, value] of Object.entries(payload)) {
       message.data[key] = typeof value === "string" ? value : JSON.stringify(value);
     }
   }
 
   if (badge !== undefined) {
-    message.data = message.data || {};
     message.data.badge = String(badge);
   }
 
