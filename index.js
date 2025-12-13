@@ -76,6 +76,7 @@ exports.sendNotification = async function sendNotification({
       continue;
     }
     let notification = new apn.Notification();
+    notification.mutableContent = 1;
     notification.topic = topic;
     if (alert !== undefined) {
       notification.alert = alert;
