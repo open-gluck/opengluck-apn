@@ -211,6 +211,7 @@ exports.sendNotification = async function sendNotification({
       console.log("FCM Notification to send for app " + app, fcmMessage);
 
       for (const token of deviceTokens) {
+        console.log("Token:       ", token);
         try {
           const response = await admin.messaging().send({
             ...fcmMessage,
