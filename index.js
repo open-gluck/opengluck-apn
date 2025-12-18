@@ -78,6 +78,8 @@ exports.sendNotification = async function sendNotification({
     let notification = new apn.Notification();
     notification.mutableContent = 1;
     notification.topic = topic;
+    notification.interruptionLevel = 'time-sensitive';
+    notification.category = category !== undefined ? category : 'DEFAULT';
     if (alert !== undefined) {
       notification.alert = alert;
     }
@@ -89,9 +91,6 @@ exports.sendNotification = async function sendNotification({
     }
     if (sound !== undefined) {
       notification.sound = sound;
-    }
-    if (category !== undefined) {
-      notification.category = category;
     }
     if (badge !== undefined) {
       notification.badge = badge;
