@@ -47,6 +47,11 @@ const getDeviceTokens = (exports.getDeviceTokens =
           });
           res.on("end", () => {
             const data = Buffer.concat(chunks).toString();
+            console.log(`[getDeviceTokens] Status: ${res.statusCode}, URL: ${process.env.OPENGLUCK_URL}/opengluck/userdata/apn-${app}/zrange`);
+            if (res.statusCode !== 200) {
+              console.log(`[getDeviceTokens] Response: ${data}`);
+              return reject(new Error(`API returned ${res.statusCode}: ${data.substring(0, 200)}`));
+            }
             const deviceTokens = JSON.parse(data);
             resolve(deviceTokens);
           });
