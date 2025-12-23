@@ -83,7 +83,7 @@ exports.sendNotification = async function sendNotification({
     let notification = new apn.Notification();
     notification.mutableContent = 1;
     notification.topic = topic;
-    notification.interruptionLevel = 'time-sensitive';
+    notification.aps["interruption-level"] = 'time-sensitive';
     notification.category = category !== undefined ? category : 'DEFAULT';
     if (alert !== undefined) {
       notification.alert = alert;
