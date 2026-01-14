@@ -47,6 +47,11 @@ const getDeviceTokens = (exports.getDeviceTokens =
           });
           res.on("end", () => {
             const data = Buffer.concat(chunks).toString();
+            console.log(`[getDeviceTokens] Status: ${res.statusCode}, URL: ${process.env.OPENGLUCK_URL}/opengluck/userdata/apn-${app}/zrange`);
+            if (res.statusCode !== 200) {
+              console.log(`[getDeviceTokens] Response: ${data}`);
+              return reject(new Error(`API returned ${res.statusCode}: ${data.substring(0, 200)}`));
+            }
             const deviceTokens = JSON.parse(data);
             resolve(deviceTokens);
           });
@@ -76,7 +81,10 @@ exports.sendNotification = async function sendNotification({
       continue;
     }
     let notification = new apn.Notification();
+    notification.mutableContent = 1;
     notification.topic = topic;
+    notification.aps["interruption-level"] = 'time-sensitive';
+    notification.category = category !== undefined ? category : 'DEFAULT';
     if (alert !== undefined) {
       notification.alert = alert;
     }
@@ -88,9 +96,6 @@ exports.sendNotification = async function sendNotification({
     }
     if (sound !== undefined) {
       notification.sound = sound;
-    }
-    if (category !== undefined) {
-      notification.category = category;
     }
     if (badge !== undefined) {
       notification.badge = badge;
